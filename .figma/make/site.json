@@ -1,0 +1,10 @@
+{
+  "description": "This fintech application provides a comprehensive fraud detection system, enabling users to monitor transactions, analyze risk, and manage alerts efficiently.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
