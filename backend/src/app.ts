@@ -11,8 +11,11 @@ import userRoutes from "./routes/user.routes.js";
 dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
 
 const app = express();
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || process.env.CORS_ORIGIN || "http://localhost:8443" }));
-app.use(express.json({ limit: "1mb" }));
+app.use(cors({ origin: ["https://fin-track-two-self.vercel.app", "http://localhost:8443" ],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+app.use(express.json());
 app.use((req, _res, next) => {
   if (req.path === "/api/health") return next();
   connectDatabase().then(() => next()).catch(next);
