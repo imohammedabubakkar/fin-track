@@ -104,6 +104,7 @@ function figmaSiteConfiguration(config: FigmaSiteConfiguration): Plugin {
       server.middlewares.use((req, res, next) => {
         if (!robotsTxt || req.url?.split('?')[0] !== '/robots.txt') return next()
 
+        res.setHeader('Access-Control-Allow-Origin', '*')
         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
         res.end(robotsTxt)
       })
