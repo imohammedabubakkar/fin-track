@@ -8,7 +8,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error(`Invalid API port "${configuredPort}". Set PORT or API_PORT to a number from 1 to 65535.`);
 }
 
-const server = app.listen(port, () => console.log(`FinTrack API listening on http://localhost:4001`));
+const server = app.listen(port, () => console.log(`FinTrack API listening on https://fin-track-m1qc.onrender.com`));
 server.on("error", error => {
   const message = error instanceof Error ? error.message : String(error);
   if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
