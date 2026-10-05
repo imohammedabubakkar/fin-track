@@ -2,13 +2,13 @@ import app from "./app.js";
 import { connectDatabase } from "./config/database.js";
 
 const configuredPort = process.env.API_PORT || process.env.PORT || "4001";
-const port = Number(configuredPort);
+const port = Number(process.env.PORT) || 4001;
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error(`Invalid API port "${configuredPort}". Set PORT or API_PORT to a number from 1 to 65535.`);
 }
 
-const server = app.listen(port, () => console.log(`FinTrack API listening on https://fin-track-m1qc.onrender.com`));
+const server = app.listen(port, () => console.log(`FinTrack API listening on port ${port}`));
 server.on("error", error => {
   const message = error instanceof Error ? error.message : String(error);
   if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {

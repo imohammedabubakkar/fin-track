@@ -1,13 +1,31 @@
-// Production entry point. Build the TypeScript backend first with `npm run build`.
-import "./dist/server.js";
-const app = express();
+import app from "./app.js";
+import { connectDatabase } from "./config/database.js";
 
-app.use(express.json());
+const port = Number(process.env.PORT) || 4001;
 
-app.get("/", (req, res) => {
-  res.status(200).json({
-    message: "Fin-Track backend is running successfully"
-  });
+if (!Number.isInteger(port) || port < 1 || port > 65535) {
+  throw new Error(`Invalid API port "${port}".`);
+}
+
+const server = app.listen(port, () => {
+  console.log(`FinTrack API listening on port ${port}`);
 });
 
-// your existing API routes below
+server.on("error", error => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
+    console.error(`Cannot start FinTrack API: port ${port} is already in use.`);
+  } else {
+    console.error("Cannot start FinTrack API:", message);
+  }
+
+  process.exitCode = 1;
+});
+
+connectDatabase().catch(error => {
+  console.error(
+    "MongoDB connection failed; API is running with database-dependent routes unavailable:",
+    error
+  );
+});
