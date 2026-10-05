@@ -23,7 +23,11 @@ export async function getTransactionSummary(_req: Request, res: Response, next: 
 }
 
 export async function postTransaction(req: Request, res: Response, next: NextFunction) {
-  try { res.status(201).json(await transactions.saveTransaction(req.body)); } catch (error) { next(error); }
+  try {
+    const record = await transactions.saveTransaction(req.body);
+    console.log(`[DB] Transaction saved: id=${record?.externalId ?? req.body.id}, amount=${record?.amount ?? req.body.amount} ${record?.currency ?? req.body.currency ?? "USD"}`);
+    res.status(201).json(record);
+  } catch (error) { next(error); }
 }
 
 export async function patchTransaction(req: Request, res: Response, next: NextFunction) {

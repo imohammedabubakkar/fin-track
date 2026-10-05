@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL || "https://fin-track-m1qc.onrender.com";
+const configuredApiBase = (import.meta.env.VITE_API_URL || "https://fin-track-m1qc.onrender.com").replace(/\/+$/, "");
+const API_BASE = configuredApiBase.endsWith("/api") ? configuredApiBase : `${configuredApiBase}/api`;
 
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {

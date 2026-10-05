@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { getApiHealth } from "./lib/api";
+import { apiRequest, getApiHealth } from "./lib/api";
 
 type Page = "overview" | "transactions" | "alerts" | "analytics" | "users" | "create-user" | "change-password" | "settings" | "admin" | "create" | "detail";
 type IconName = "grid" | "card" | "shield" | "chart" | "users" | "settings" | "search" | "bell" | "plus" | "arrow" | "more" | "filter" | "download" | "check" | "clock" | "lock" | "globe" | "database" | "server" | "activity" | "eye" | "chevron" | "logout" | "trash" | "x";
@@ -490,6 +490,8 @@ function CreateUser({ setPage, onUserCreated }: { setPage: (p: Page) => void; on
       id: userId,
       name: values.fullName.trim(),
       email: values.email.trim(),
+      phone: values.phone.trim(),
+      dob: values.dob,
       username: values.username,
       passwordHash: await hashPassword(password),
       role: values.role,
@@ -497,6 +499,8 @@ function CreateUser({ setPage, onUserCreated }: { setPage: (p: Page) => void; on
       registered: new Intl.DateTimeFormat("en", { month: "short", day: "2-digit", year: "numeric" }).format(new Date()),
       activity: "Just now",
     };
+    void apiRequest("/users", { method: "POST", body: JSON.stringify(newUser) })
+      .catch(error => console.error("Could not save user to the database:", error));
     onUserCreated(newUser);
     setCreatedUser({ id: newUser.id, username: newUser.username, role: newUser.role, status: newUser.status });
   };
@@ -739,6 +743,8 @@ function CreateTransaction({ setPage, customer, ownerId, detectionRules, onTrans
       score,
       status: risk === "HIGH" && detectionRules.holdHighRisk ? "PENDING" : "SUCCESS",
     };
+    void apiRequest("/transactions", { method: "POST", body: JSON.stringify(transaction) })
+      .catch(error => console.error("Could not save transaction to the database:", error));
     onTransactionCreated(transaction);
     setPage("transactions");
   };
@@ -772,19 +778,29 @@ function Login({ onLogin, users, adminPasswordHash, loggedOut }: { onLogin: (rol
       return;
     }
     const passwordHash = await hashPassword(password);
+    const recordLogin = (success: boolean, role = loginType) => {
+      void apiRequest("/users/login-log", {
+        method: "POST",
+        body: JSON.stringify({ username: username.trim(), role, success }),
+      }).catch(error => console.error("Could not send login event to the API:", error));
+    };
     if (loginType === "ADMIN" && username === "abubakkar" && (adminPasswordHash ? passwordHash === adminPasswordHash : password === "10092004")) {
+      recordLogin(true, "ADMIN");
       onLogin("ADMIN", "Abubakkar", "ADMIN-abubakkar");
       return;
     }
     const matchedUser = users.find(user => user.username.toLowerCase() === username.trim().toLowerCase() && user.passwordHash === passwordHash && user.status === "ACTIVE");
     if (loginType === "USER" && matchedUser?.role === "USER") {
+      recordLogin(true, "USER");
       onLogin("USER", matchedUser.name, matchedUser.id);
       return;
     }
     if (loginType === "ADMIN" && matchedUser?.role === "ANALYST") {
+      recordLogin(true, "ANALYST");
       onLogin("ANALYST", matchedUser.name, matchedUser.id);
       return;
     }
+    recordLogin(false);
     setError(loginType === "USER" ? "Username or password is incorrect. Use an active USER account registered by an administrator." : "Admin or analyst credentials are incorrect. Analyst accounts must be active and registered by an administrator.");
   };
 
