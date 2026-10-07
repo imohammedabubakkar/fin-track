@@ -1,26 +1,25 @@
 import mongoose from "mongoose";
+import { FraudAlert } from "../models/fraud-alert.model.js";
+import { Setting } from "../models/setting.model.js";
+import { Transaction } from "../models/transaction.model.js";
+import { User } from "../models/user.model.js";
 
 let connection: Promise<typeof mongoose> | undefined;
 
-mongoose.connection.on("connecting", () => {
-  console.log("Connecting to MongoDB...");
-});
-
 mongoose.connection.on("connected", () => {
-  const { host, name } = mongoose.connection;
-  console.log(`MongoDB connected${name ? ` to database "${name}"` : ""}${host ? ` on ${host}` : ""}`);
+  console.log(`[Database] MongoDB Connected: ${mongoose.connection.host}`);
 });
 
 mongoose.connection.on("reconnected", () => {
-  console.log("MongoDB connection restored");
+  console.log("[Database] MongoDB connection restored");
 });
 
 mongoose.connection.on("disconnected", () => {
-  console.warn("MongoDB disconnected");
+  console.warn("[Database] MongoDB disconnected");
 });
 
 mongoose.connection.on("error", error => {
-  console.error("MongoDB connection error:", error.message);
+  console.error("[Database] MongoDB connection error:", error.message);
 });
 
 export async function connectDatabase() {
@@ -30,6 +29,15 @@ export async function connectDatabase() {
   connection ??= mongoose.connect(uri, { serverSelectionTimeoutMS: 10_000 });
   try {
     await connection;
+    const collections = [User, Transaction, FraudAlert, Setting];
+    await Promise.all(collections.map(async model => {
+      try {
+        await model.createCollection();
+      } catch (error) {
+        if ((error as { code?: number }).code !== 48) throw error;
+      }
+    }));
+    console.log(`[Database] Collections ready in "${mongoose.connection.name}": ${collections.map(model => model.collection.name).sort().join(", ")}`);
     return mongoose;
   } catch (error) {
     connection = undefined;

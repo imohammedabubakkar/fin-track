@@ -16,3 +16,24 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
 
 export type ApiHealth = { status: string; database: "connected" | "disconnected" };
 export const getApiHealth = () => apiRequest<ApiHealth>("/health");
+
+export type ApiTransaction = {
+  id?: string;
+  externalId?: string;
+  customer?: string;
+  ownerId?: string;
+  amount?: number;
+  currency?: string;
+  merchant?: string;
+  location?: string;
+  type?: string;
+  description?: string;
+  date?: string;
+  createdAt?: string;
+  risk?: string;
+  score?: number;
+  status?: string;
+};
+
+export type TransactionList = { data: ApiTransaction[]; pagination: { total: number } };
+export const getTransactions = () => apiRequest<TransactionList>("/transactions?limit=100");

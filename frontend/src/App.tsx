@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { apiRequest, getApiHealth } from "./lib/api";
+import { apiRequest, getApiHealth, getTransactions } from "./lib/api";
 
 type Page = "overview" | "transactions" | "alerts" | "analytics" | "users" | "create-user" | "change-password" | "settings" | "admin" | "create" | "detail";
 type IconName = "grid" | "card" | "shield" | "chart" | "users" | "settings" | "search" | "bell" | "plus" | "arrow" | "more" | "filter" | "download" | "check" | "clock" | "lock" | "globe" | "database" | "server" | "activity" | "eye" | "chevron" | "logout" | "trash" | "x";
@@ -720,7 +720,8 @@ function Admin({ users, transactions, setPage }: { users: UserRecord[]; transact
 }
 
 function CreateTransaction({ setPage, customer, ownerId, detectionRules, onTransactionCreated }: { setPage: (p: Page) => void; customer: string; ownerId: string; detectionRules: DetectionRules; onTransactionCreated: (transaction: TransactionRecord) => void }) {
-  const submitTransaction = (event: React.FormEvent<HTMLFormElement>) => {
+  const [saveError, setSaveError] = useState("");
+  const submitTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const values = Object.fromEntries(form.entries()) as Record<string, string>;
@@ -743,13 +744,18 @@ function CreateTransaction({ setPage, customer, ownerId, detectionRules, onTrans
       score,
       status: risk === "HIGH" && detectionRules.holdHighRisk ? "PENDING" : "SUCCESS",
     };
-    void apiRequest("/transactions", { method: "POST", body: JSON.stringify(transaction) })
-      .catch(error => console.error("Could not save transaction to the database:", error));
+    setSaveError("");
+    try {
+      await apiRequest("/transactions", { method: "POST", body: JSON.stringify(transaction) });
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not save transaction to the database.");
+      return;
+    }
     onTransactionCreated(transaction);
     setPage("transactions");
   };
   return <><button className="back-link" onClick={()=>setPage("transactions")}><Icon name="chevron"/> Back to transactions</button><PageHeader eyebrow="SECURE PAYMENT" title="Create transaction" copy="Initiate a new financial transaction securely."/>
-    <div className="create-layout"><form className="card transaction-form" onSubmit={submitTransaction}><div className="form-section"><h2>Transaction details</h2><p>Enter the payment information below.</p></div><div className="amount-input"><label>Amount</label><div><span>$</span><input name="amount" type="number" placeholder="0.00" required min="1" step="0.01"/><select name="currency"><option>USD</option><option>EUR</option><option>GBP</option></select></div><small>Minimum transaction amount is $1.00</small></div><div className="form-grid"><label>Merchant<input name="merchant" placeholder="Search or enter merchant name" required/></label><label>Transaction type<select name="type" required><option>Online purchase</option><option>Transfer</option><option>Subscription</option></select></label><label>Location<input name="location" placeholder="City, Country" required/></label><label>Reference ID<input name="reference" placeholder="Optional reference"/></label><label className="span-2">Description<textarea name="description" placeholder="Add a brief description for this transaction" rows={4}/></label></div><div className="form-actions"><Button kind="secondary" onClick={()=>setPage("transactions")}>Cancel</Button><Button type="submit" icon="lock">Submit transaction</Button></div></form>
+    <div className="create-layout"><form className="card transaction-form" onSubmit={submitTransaction}><div className="form-section"><h2>Transaction details</h2><p>Enter the payment information below.</p></div>{saveError && <p role="alert" className="login-error">{saveError}</p>}<div className="amount-input"><label>Amount</label><div><span>$</span><input name="amount" type="number" placeholder="0.00" required min="1" step="0.01"/><select name="currency"><option>USD</option><option>EUR</option><option>GBP</option></select></div><small>Minimum transaction amount is $1.00</small></div><div className="form-grid"><label>Merchant<input name="merchant" placeholder="Search or enter merchant name" required/></label><label>Transaction type<select name="type" required><option>Online purchase</option><option>Transfer</option><option>Subscription</option></select></label><label>Location<input name="location" placeholder="City, Country" required/></label><label>Reference ID<input name="reference" placeholder="Optional reference"/></label><label className="span-2">Description<textarea name="description" placeholder="Add a brief description for this transaction" rows={4}/></label></div><div className="form-actions"><Button kind="secondary" onClick={()=>setPage("transactions")}>Cancel</Button><Button type="submit" icon="lock">Submit transaction</Button></div></form>
       <aside><div className="card security-card"><span className="security-large"><Icon name="shield" size={28}/></span><h2>Secure transaction</h2><p>Your transaction is protected by FinTrack's enterprise security infrastructure.</p>{[["JWT Authentication","Identity verified"],["Encrypted communication","TLS 1.3 active"],["Fraud monitoring","Real-time risk analysis"],["Role-based access","Administrator approved"]].map(x=><div key={x[0]}><Icon name="check"/><span><b>{x[0]}</b><small>{x[1]}</small></span></div>)}</div><div className="card help-card"><h3>Need assistance?</h3><p>Contact your finance administrator or review the transaction documentation.</p><Button kind="ghost">View documentation</Button></div></aside>
     </div>
   </>;
@@ -855,6 +861,31 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("fintrack-transactions", JSON.stringify(createdTransactions));
   }, [createdTransactions]);
+  useEffect(() => {
+    if (!loggedIn) return;
+    let active = true;
+    getTransactions().then(({ data }) => {
+      if (!active) return;
+      const transactions = data.map(record => ({
+        id: record.id || record.externalId || "",
+        customer: record.customer || "Unknown customer",
+        ownerId: record.ownerId,
+        amount: Number(record.amount) || 0,
+        currency: record.currency || "USD",
+        merchant: record.merchant || "Unknown merchant",
+        location: record.location || "—",
+        type: record.type || "Transaction",
+        description: record.description || "",
+        date: record.date || (record.createdAt ? new Date(record.createdAt).toLocaleString() : "—"),
+        createdAt: record.createdAt,
+        risk: (record.risk || "LOW").toUpperCase() as TransactionRecord["risk"],
+        score: Number(record.score) || 0,
+        status: (record.status || "PENDING").toUpperCase() as TransactionRecord["status"],
+      }));
+      setCreatedTransactions(transactions);
+    }).catch(error => console.error("Could not load transactions from the database:", error));
+    return () => { active = false; };
+  }, [loggedIn]);
   useEffect(() => {
     if (adminPasswordHash) localStorage.setItem("fintrack-admin-password", adminPasswordHash);
   }, [adminPasswordHash]);
